@@ -2,10 +2,10 @@
  * @author mrdoob / http://mrdoob.com/
  */
 
-import { Color } from '../../math/Color';
-import { Matrix4 } from '../../math/Matrix4';
-import { Vector2 } from '../../math/Vector2';
-import { Vector3 } from '../../math/Vector3';
+import { Color } from '../../math/Color.js';
+import { Matrix4 } from '../../math/Matrix4.js';
+import { Vector2 } from '../../math/Vector2.js';
+import { Vector3 } from '../../math/Vector3.js';
 
 function UniformsCache() {
 
@@ -100,15 +100,28 @@ function UniformsCache() {
 
 }
 
+var count = 0;
+
 function WebGLLights() {
 
 	var cache = new UniformsCache();
 
 	var state = {
 
-		hash: '',
+		id: count ++,
+
+		hash: {
+			stateID: - 1,
+			directionalLength: - 1,
+			pointLength: - 1,
+			spotLength: - 1,
+			rectAreaLength: - 1,
+			hemiLength: - 1,
+			shadowsLength: - 1
+		},
 
 		ambient: [ 0, 0, 0 ],
+		probe: [],
 		directional: [],
 		directionalShadowMap: [],
 		directionalShadowMatrix: [],
@@ -123,6 +136,8 @@ function WebGLLights() {
 
 	};
 
+	for ( var i = 0; i < 9; i ++ ) state.probe.push( new Vector3() );
+
 	var vector3 = new Vector3();
 	var matrix4 = new Matrix4();
 	var matrix42 = new Matrix4();
@@ -130,6 +145,8 @@ function WebGLLights() {
 	function setup( lights, shadows, camera ) {
 
 		var r = 0, g = 0, b = 0;
+
+		for ( var i = 0; i < 9; i ++ ) state.probe[ i ].set( 0, 0, 0 );
 
 		var directionalLength = 0;
 		var pointLength = 0;
@@ -154,6 +171,14 @@ function WebGLLights() {
 				r += color.r * intensity;
 				g += color.g * intensity;
 				b += color.b * intensity;
+
+			} else if ( light.isLightProbe ) {
+
+				for ( var j = 0; j < 9; j ++ ) {
+
+					state.probe[ j ].addScaledVector( light.sh.coefficients[ j ], intensity );
+
+				}
 
 			} else if ( light.isDirectionalLight ) {
 
@@ -200,7 +225,7 @@ function WebGLLights() {
 
 				uniforms.coneCos = Math.cos( light.angle );
 				uniforms.penumbraCos = Math.cos( light.angle * ( 1 - light.penumbra ) );
-				uniforms.decay = ( light.distance === 0 ) ? 0.0 : light.decay;
+				uniforms.decay = light.decay;
 
 				uniforms.shadow = light.castShadow;
 
@@ -224,13 +249,11 @@ function WebGLLights() {
 
 				var uniforms = cache.get( light );
 
-				// (a) intensity controls irradiance of entire light
-				uniforms.color
-					.copy( color )
-					.multiplyScalar( intensity / ( light.width * light.height ) );
+				// (a) intensity is the total visible light emitted
+				//uniforms.color.copy( color ).multiplyScalar( intensity / ( light.width * light.height * Math.PI ) );
 
-				// (b) intensity controls the radiance per light area
-				// uniforms.color.copy( color ).multiplyScalar( intensity );
+				// (b) intensity is the brightness of the light
+				uniforms.color.copy( color ).multiplyScalar( intensity );
 
 				uniforms.position.setFromMatrixPosition( light.matrixWorld );
 				uniforms.position.applyMatrix4( viewMatrix );
@@ -241,8 +264,8 @@ function WebGLLights() {
 				matrix4.premultiply( viewMatrix );
 				matrix42.extractRotation( matrix4 );
 
-				uniforms.halfWidth.set( light.width * 0.5,                0.0, 0.0 );
-				uniforms.halfHeight.set(              0.0, light.height * 0.5, 0.0 );
+				uniforms.halfWidth.set( light.width * 0.5, 0.0, 0.0 );
+				uniforms.halfHeight.set( 0.0, light.height * 0.5, 0.0 );
 
 				uniforms.halfWidth.applyMatrix4( matrix42 );
 				uniforms.halfHeight.applyMatrix4( matrix42 );
@@ -263,7 +286,7 @@ function WebGLLights() {
 
 				uniforms.color.copy( light.color ).multiplyScalar( light.intensity );
 				uniforms.distance = light.distance;
-				uniforms.decay = ( light.distance === 0 ) ? 0.0 : light.decay;
+				uniforms.decay = light.decay;
 
 				uniforms.shadow = light.castShadow;
 
@@ -314,15 +337,20 @@ function WebGLLights() {
 		state.point.length = pointLength;
 		state.hemi.length = hemiLength;
 
-		// TODO (sam-g-steel) why aren't we using join
-		state.hash = directionalLength + ',' + pointLength + ',' + spotLength + ',' + rectAreaLength + ',' + hemiLength + ',' + shadows.length;
+		state.hash.stateID = state.id;
+		state.hash.directionalLength = directionalLength;
+		state.hash.pointLength = pointLength;
+		state.hash.spotLength = spotLength;
+		state.hash.rectAreaLength = rectAreaLength;
+		state.hash.hemiLength = hemiLength;
+		state.hash.shadowsLength = shadows.length;
 
 	}
 
 	return {
 		setup: setup,
 		state: state
-	}
+	};
 
 }
 

@@ -1,6 +1,5 @@
-import { _Math } from './Math';
-import { Matrix4 } from './Matrix4';
-import { Quaternion } from './Quaternion';
+import { _Math } from './Math.js';
+import { Quaternion } from './Quaternion.js';
 
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -282,8 +281,8 @@ Object.assign( Vector3.prototype, {
 
 		var w = 1 / ( e[ 3 ] * x + e[ 7 ] * y + e[ 11 ] * z + e[ 15 ] );
 
-		this.x = ( e[ 0 ] * x + e[ 4 ] * y + e[ 8 ]  * z + e[ 12 ] ) * w;
-		this.y = ( e[ 1 ] * x + e[ 5 ] * y + e[ 9 ]  * z + e[ 13 ] ) * w;
+		this.x = ( e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z + e[ 12 ] ) * w;
+		this.y = ( e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z + e[ 13 ] ) * w;
 		this.z = ( e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z + e[ 14 ] ) * w;
 
 		return this;
@@ -297,9 +296,9 @@ Object.assign( Vector3.prototype, {
 
 		// calculate quat * vector
 
-		var ix =  qw * x + qy * z - qz * y;
-		var iy =  qw * y + qz * x - qx * z;
-		var iz =  qw * z + qx * y - qy * x;
+		var ix = qw * x + qy * z - qz * y;
+		var iy = qw * y + qz * x - qx * z;
+		var iz = qw * z + qx * y - qy * x;
 		var iw = - qx * x - qy * y - qz * z;
 
 		// calculate result * inverse quat
@@ -312,31 +311,17 @@ Object.assign( Vector3.prototype, {
 
 	},
 
-	project: function () {
+	project: function ( camera ) {
 
-		var matrix = new Matrix4();
+		return this.applyMatrix4( camera.matrixWorldInverse ).applyMatrix4( camera.projectionMatrix );
 
-		return function project( camera ) {
+	},
 
-			matrix.multiplyMatrices( camera.projectionMatrix, matrix.getInverse( camera.matrixWorld ) );
-			return this.applyMatrix4( matrix );
+	unproject: function ( camera ) {
 
-		};
+		return this.applyMatrix4( camera.projectionMatrixInverse ).applyMatrix4( camera.matrixWorld );
 
-	}(),
-
-	unproject: function () {
-
-		var matrix = new Matrix4();
-
-		return function unproject( camera ) {
-
-			matrix.multiplyMatrices( camera.matrixWorld, matrix.getInverse( camera.projectionMatrix ) );
-			return this.applyMatrix4( matrix );
-
-		};
-
-	}(),
+	},
 
 	transformDirection: function ( m ) {
 
@@ -346,8 +331,8 @@ Object.assign( Vector3.prototype, {
 		var x = this.x, y = this.y, z = this.z;
 		var e = m.elements;
 
-		this.x = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ]  * z;
-		this.y = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ]  * z;
+		this.x = e[ 0 ] * x + e[ 4 ] * y + e[ 8 ] * z;
+		this.y = e[ 1 ] * x + e[ 5 ] * y + e[ 9 ] * z;
 		this.z = e[ 2 ] * x + e[ 6 ] * y + e[ 10 ] * z;
 
 		return this.normalize();
@@ -402,21 +387,15 @@ Object.assign( Vector3.prototype, {
 
 	},
 
-	clampScalar: function () {
+	clampScalar: function ( minVal, maxVal ) {
 
-		var min = new Vector3();
-		var max = new Vector3();
+		this.x = Math.max( minVal, Math.min( maxVal, this.x ) );
+		this.y = Math.max( minVal, Math.min( maxVal, this.y ) );
+		this.z = Math.max( minVal, Math.min( maxVal, this.z ) );
 
-		return function clampScalar( minVal, maxVal ) {
+		return this;
 
-			min.set( minVal, minVal, minVal );
-			max.set( maxVal, maxVal, maxVal );
-
-			return this.clamp( min, max );
-
-		};
-
-	}(),
+	},
 
 	clampLength: function ( min, max ) {
 
@@ -496,7 +475,7 @@ Object.assign( Vector3.prototype, {
 
 	},
 
-	lengthManhattan: function () {
+	manhattanLength: function () {
 
 		return Math.abs( this.x ) + Math.abs( this.y ) + Math.abs( this.z );
 
@@ -539,13 +518,7 @@ Object.assign( Vector3.prototype, {
 
 		}
 
-		var x = this.x, y = this.y, z = this.z;
-
-		this.x = y * v.z - z * v.y;
-		this.y = z * v.x - x * v.z;
-		this.z = x * v.y - y * v.x;
-
-		return this;
+		return this.crossVectors( this, v );
 
 	},
 
@@ -623,7 +596,7 @@ Object.assign( Vector3.prototype, {
 
 	},
 
-	distanceToManhattan: function ( v ) {
+	manhattanDistanceTo: function ( v ) {
 
 		return Math.abs( this.x - v.x ) + Math.abs( this.y - v.y ) + Math.abs( this.z - v.z );
 
@@ -631,11 +604,17 @@ Object.assign( Vector3.prototype, {
 
 	setFromSpherical: function ( s ) {
 
-		var sinPhiRadius = Math.sin( s.phi ) * s.radius;
+		return this.setFromSphericalCoords( s.radius, s.phi, s.theta );
 
-		this.x = sinPhiRadius * Math.sin( s.theta );
-		this.y = Math.cos( s.phi ) * s.radius;
-		this.z = sinPhiRadius * Math.cos( s.theta );
+	},
+
+	setFromSphericalCoords: function ( radius, phi, theta ) {
+
+		var sinPhiRadius = Math.sin( phi ) * radius;
+
+		this.x = sinPhiRadius * Math.sin( theta );
+		this.y = Math.cos( phi ) * radius;
+		this.z = sinPhiRadius * Math.cos( theta );
 
 		return this;
 
@@ -643,9 +622,15 @@ Object.assign( Vector3.prototype, {
 
 	setFromCylindrical: function ( c ) {
 
-		this.x = c.radius * Math.sin( c.theta );
-		this.y = c.y;
-		this.z = c.radius * Math.cos( c.theta );
+		return this.setFromCylindricalCoords( c.radius, c.theta, c.y );
+
+	},
+
+	setFromCylindricalCoords: function ( radius, theta, y ) {
+
+		this.x = radius * Math.sin( theta );
+		this.y = y;
+		this.z = radius * Math.cos( theta );
 
 		return this;
 

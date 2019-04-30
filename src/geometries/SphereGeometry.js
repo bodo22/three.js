@@ -4,10 +4,10 @@
  * @author Mugen87 / https://github.com/Mugen87
  */
 
-import { Geometry } from '../core/Geometry';
-import { BufferGeometry } from '../core/BufferGeometry';
-import { Float32BufferAttribute } from '../core/BufferAttribute';
-import { Vector3 } from '../math/Vector3';
+import { Geometry } from '../core/Geometry.js';
+import { BufferGeometry } from '../core/BufferGeometry.js';
+import { Float32BufferAttribute } from '../core/BufferAttribute.js';
+import { Vector3 } from '../math/Vector3.js';
 
 // SphereGeometry
 
@@ -53,7 +53,7 @@ function SphereBufferGeometry( radius, widthSegments, heightSegments, phiStart, 
 		thetaLength: thetaLength
 	};
 
-	radius = radius || 50;
+	radius = radius || 1;
 
 	widthSegments = Math.max( 3, Math.floor( widthSegments ) || 8 );
 	heightSegments = Math.max( 2, Math.floor( heightSegments ) || 6 );
@@ -89,6 +89,10 @@ function SphereBufferGeometry( radius, widthSegments, heightSegments, phiStart, 
 
 		var v = iy / heightSegments;
 
+		// special case for the poles
+
+		var uOffset = ( iy == 0 ) ? 0.5 / widthSegments : ( ( iy == heightSegments ) ? - 0.5 / widthSegments : 0 );
+
 		for ( ix = 0; ix <= widthSegments; ix ++ ) {
 
 			var u = ix / widthSegments;
@@ -103,12 +107,12 @@ function SphereBufferGeometry( radius, widthSegments, heightSegments, phiStart, 
 
 			// normal
 
-			normal.set( vertex.x, vertex.y, vertex.z ).normalize();
+			normal.copy( vertex ).normalize();
 			normals.push( normal.x, normal.y, normal.z );
 
 			// uv
 
-			uvs.push( u, 1 - v );
+			uvs.push( u + uOffset, 1 - v );
 
 			verticesRow.push( index ++ );
 
